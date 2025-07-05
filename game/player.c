@@ -3,6 +3,9 @@
 #include <stdio.h>
 #include <SDL2/SDL_image.h>
 
+const int LARGEUR_HITBOX = 10;
+const int HAUTEUR_HITBOX = 10;
+
 Player *InitPlayer(float x, float y, SDL_Renderer *renderer)
 {
     Player *player = malloc(sizeof(Player));
@@ -32,6 +35,12 @@ Player *InitPlayer(float x, float y, SDL_Renderer *renderer)
     player->entity.sprite = sprite;
     player->entity.visible = true;
     player->entity.layer = 1;
+
+    player->entity.hitbox.x = x + sprite->frame_width / 2 - LARGEUR_HITBOX / 2;
+    player->entity.hitbox.y = y + sprite->frame_height - HAUTEUR_HITBOX;
+    player->entity.hitbox.width = LARGEUR_HITBOX;
+    player->entity.hitbox.height = HAUTEUR_HITBOX;
+
     player->currentAnimationName = "defaut_bas";
     player->lastDirection = 3;
 
@@ -51,6 +60,9 @@ Player *InitPlayer(float x, float y, SDL_Renderer *renderer)
 void updatePlayerWithInput(Player *player, Input *input, float deltaTime)
 {
     updateEntity(&player->entity);
+
+    player->entity.hitbox.x = player->entity.x + player->entity.sprite->frame_width / 2 - LARGEUR_HITBOX / 2;
+    player->entity.hitbox.y = player->entity.y + player->entity.sprite->frame_height - HAUTEUR_HITBOX;
 
     const char *newAnimation = NULL;
 
@@ -114,6 +126,7 @@ void renderPlayer(Player *player, SDL_Renderer *renderer)
                             (int)player->entity.x, (int)player->entity.y,
                             player->flip);
     }
+    drawHitbox(&player->entity, renderer);
 }
 
 void freePlayer(Player *player)
