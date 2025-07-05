@@ -89,6 +89,23 @@ static void add_animated_tile_info(tmx_tile *tile, uint32_t first_gid)
     animated_tiles_count++;
 }
 
+void DeBugMap(Map *map)
+{
+    // Debug : afficher les coordonnées des collisions
+    printf("=== DEBUG COLLISIONS ===\n");
+    printf("Nombre de collisions trouvées: %d\n", map->collision_count);
+    for (int i = 0; i < map->collision_count; i++)
+    {
+        printf("Collision %d:\n", i);
+        printf("  Position: x=%.2f, y=%.2f\n", (float)map->collisions[i].rect.x, (float)map->collisions[i].rect.y);
+        printf("  Taille: w=%.2f, h=%.2f\n", (float)map->collisions[i].rect.w, (float)map->collisions[i].rect.h);
+        printf("  Nom: %s\n", map->collisions[i].name ? map->collisions[i].name : "NULL");
+        printf("  Type: %s\n", map->collisions[i].type ? map->collisions[i].type : "NULL");
+        printf("\n");
+    }
+    printf("========================\n");
+}
+
 Map *loadMap(const char *filePath, SDL_Renderer *renderer)
 {
     global_renderer = renderer;
@@ -110,7 +127,9 @@ Map *loadMap(const char *filePath, SDL_Renderer *renderer)
     map->default_x_spawn = map->default_y_spawn = 0.0f;
     Map_getPlayerSpawn(map, &map->default_x_spawn, &map->default_y_spawn);
 
-    // Map_initAnimations sera appelée depuis main.c après loadMap
+    map->collisions = Map_getCollisionObjects(map, "CollisionObject", &map->collision_count);
+
+    DeBugMap(map);
 
     return map;
 }
@@ -119,6 +138,16 @@ void freeMap(Map *map)
 {
     if (map)
     {
+        if (map->collisions)
+        {
+            for (int i = 0; i < map->collision_count; i++)
+            {
+                free(map->collisions[i].name);
+                free(map->collisions[i].type);
+            }
+            free(map->collisions);
+        }
+
         tmx_map_free(map->tmx_map);
         free(map);
     }

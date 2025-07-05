@@ -7,15 +7,6 @@
 #include <stdbool.h>
 #include <stdint.h> // Pour uint32_t
 
-// Structure pour stocker les informations de la carte
-typedef struct
-{
-    tmx_map *tmx_map;
-    float default_x_spawn;
-    float default_y_spawn;
-
-} Map;
-
 // Structure pour représenter une zone de collision
 typedef struct
 {
@@ -23,6 +14,17 @@ typedef struct
     char *name;
     char *type; // Optional: "Collision", "Wall", etc.
 } CollisionObject;
+
+// Structure pour stocker les informations de la carte
+typedef struct
+{
+    tmx_map *tmx_map;
+    float default_x_spawn;
+    float default_y_spawn;
+    CollisionObject *collisions;
+    int collision_count;
+
+} Map;
 
 // Charge une carte TMX et ses ressources associées
 Map *loadMap(const char *filePath, SDL_Renderer *renderer);
@@ -47,5 +49,8 @@ bool Map_setTile(Map *map, const char *layerName, int x, int y, int gid);
 // Initialise les informations d'animation pour toutes les tuiles animées de la carte
 // Cette fonction est maintenant déclarée ici car elle est appelée depuis main.c
 void Map_initAnimations(Map *map);
+
+// Debug
+void DeBugMap(Map *map);
 
 #endif // MAP_H

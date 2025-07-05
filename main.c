@@ -28,7 +28,7 @@ Map *loadAndInitMap(const char *name, SDL_Renderer *renderer)
     {
         map->default_x_spawn = spawn_x;
         map->default_y_spawn = spawn_y;
-        printf("Map chargée : spawn en (%.2f, %.2f)\n", map->default_x_spawn, map->default_y_spawn);
+        // printf("Map chargée : spawn en (%.2f, %.2f)\n", map->default_x_spawn, map->default_y_spawn);
     }
     else
     {
