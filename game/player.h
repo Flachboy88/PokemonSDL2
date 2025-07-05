@@ -18,15 +18,41 @@ typedef enum
 
 typedef struct
 {
-    Entity entity;         // Hérite d'Entity
-    float speed;           // Vitesse de déplacement
-    bool moving;           // En mouvement
-    SDL_RendererFlip flip; // Direction (flip horizontal)
-    const char *currentAnimationName;
-    int lastDirection;
+    const char *idle;
+    const char *walk;
+} AnimationSet;
 
-    float targetX, targetY; // Position cible (multiple de 16)
+typedef struct
+{
+    AnimationSet walk_anims[4]; // [gauche, droite, haut, bas]
+    AnimationSet bike_anims[4];
+    AnimationSet run_anims[4]; // pour plus tard
+} PlayerAnimations;
+
+// Structure pour gérer les actions du joueur
+typedef struct
+{
+    bool move_left;
+    bool move_right;
+    bool move_up;
+    bool move_down;
+    bool toggle_bike;
+    bool toggle_run;
+} PlayerActions;
+
+typedef struct
+{
+    Entity entity;
+    float speed;
+    bool moving;
+    SDL_RendererFlip flip;
+
+    PlayerAnimations animations;
+    int direction; // 0=gauche, 1=droite, 2=haut, 3=bas
+
+    float targetX, targetY;
     bool hasTarget;
+    bool wasMovingLastFrame;
 
     PlayerMode mode;
 
@@ -43,17 +69,15 @@ void updatePlayerWithInput(Player *player, Input *input, float deltaTime, Map *m
 void renderPlayer(Player *player, SDL_Renderer *renderer);
 void freePlayer(Player *player);
 char *derniereDir(Player *player);
-void deplacement(Player *player, int dir, float deltaTime, Map *map);
-const char *walkAnimFromDir(int dir);
 bool checkCollisionWithMap(Player *player, float newX, float newY, Map *map);
 bool pointInPolygon(Point point, Point *polygon, int count);
 bool rectangleIntersectsPolygon(Hitbox rect, Point *polygon, int count);
-void setPlayerMode(Player *player, PlayerMode mode);
 PlayerMode getPlayerMode(Player *player);
-void setPlayerSpeedMode(Player *player);
 void setPlayerSprite(Player *player);
-void initWalkSprite(Player *player, SDL_Renderer *renderer);
-void initBikeSprite(Player *player, SDL_Renderer *renderer);
-const char *getWalkAnimFromDir(Player *player, int dir);
+void processPlayerInput(Player *player, Input *input, float deltaTime, Map *map);
+void updatePlayerMovement(Player *player, float deltaTime, Map *map);
+void updatePlayerAnimation(Player *player);
+PlayerActions inputToActions(Input *input);
+void startMovement(Player *player, int direction, Map *map);
 
 #endif

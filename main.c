@@ -79,7 +79,7 @@ bool handleEvents(SDL_Event *event, Input *input)
 
 void updateData(Player *player, Input *input, float deltaTime, Map *map)
 {
-    updatePlayerWithInput(player, input, deltaTime, map);
+    processPlayerInput(player, input, deltaTime, map);
 }
 
 void updateGraphics(SDL_Renderer *renderer, Map *map, Player *player, Uint32 currentTime)
