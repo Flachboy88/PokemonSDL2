@@ -25,12 +25,28 @@ static void SDL_tex_deleter(void *res)
     SDL_DestroyTexture((SDL_Texture *)res);
 }
 
+// Structure pour stocker les informations d'une tuile animée
+typedef struct
+{
+    uint32_t local_tile_id;     // Local ID of the animated tile within its tileset
+    uint32_t tileset_first_gid; // First GID of the tileset this tile belongs to
+    tmx_tile *tmx_tile_ptr;     // Pointeur vers la structure tmx_tile pour cette animation
+    int current_frame_index;    // Index de la frame actuelle dans l'animation
+    uint32_t frame_start_time;  // Temps (en ms) où la frame actuelle a commencé à s'afficher
+} AnimatedTileInfo;
+
 // Liste globale (ou membre de la structure Map) pour stocker les AnimatedTileInfo
-// Pour la simplicité, nous allons utiliser un tableau dynamique.
-// Une meilleure approche serait une liste liée ou un tableau redimensionnable.
 static AnimatedTileInfo *animated_tiles_infos = NULL;
 static int animated_tiles_count = 0;
 static int animated_tiles_capacity = 0;
+
+// Déclarations des fonctions statiques
+static void draw_tile(SDL_Renderer *ren, tmx_tile *tile, int dx, int dy, int tile_width, int tile_height);
+static void draw_layer(SDL_Renderer *ren, tmx_map *m, tmx_layer *layer, uint32_t current_time);
+static void draw_objects(SDL_Renderer *ren, tmx_object_group *og);
+static void draw_image_layer(SDL_Renderer *ren, tmx_image *img);
+static void recurse_layers(SDL_Renderer *ren, tmx_map *m, tmx_layer *layer, uint32_t current_time);
+static void add_animated_tile_info(tmx_tile *tile, uint32_t first_gid);
 
 // Fonction utilitaire pour ajouter une tuile animée à notre liste
 static void add_animated_tile_info(tmx_tile *tile, uint32_t first_gid)
@@ -94,8 +110,7 @@ Map *loadMap(const char *filePath, SDL_Renderer *renderer)
     map->default_x_spawn = map->default_y_spawn = 0.0f;
     Map_getPlayerSpawn(map, &map->default_x_spawn, &map->default_y_spawn);
 
-    // Initialiser les informations d'animation après le chargement de la carte
-    Map_initAnimations(map);
+    // Map_initAnimations sera appelée depuis main.c après loadMap
 
     return map;
 }
@@ -107,7 +122,7 @@ void freeMap(Map *map)
         tmx_map_free(map->tmx_map);
         free(map);
     }
-    if (animated_tiles_infos)
+    if (animated_tiles_infos) // Libérer la mémoire des infos d'animation
     {
         free(animated_tiles_infos);
         animated_tiles_infos = NULL;
@@ -132,7 +147,8 @@ static void draw_tile(SDL_Renderer *ren, tmx_tile *tile, int dx, int dy, int til
     SDL_RenderCopy(ren, tex, &src, &dst);
 }
 
-static void draw_layer(SDL_Renderer *ren, tmx_map *m, tmx_layer *layer)
+// La fonction draw_layer prend maintenant un 'current_time'
+static void draw_layer(SDL_Renderer *ren, tmx_map *m, tmx_layer *layer, uint32_t current_time)
 {
     if (!layer->visible || layer->type != L_LAYER)
         return;
@@ -148,27 +164,41 @@ static void draw_layer(SDL_Renderer *ren, tmx_map *m, tmx_layer *layer)
             if (gid == 0)
                 continue; // Tuile vide
 
-            tmx_tile *tile = m->tiles[gid]; // Obtient la tuile originale (ou la première frame si animée)
+            tmx_tile *tile = m->tiles[gid]; // Obtient la tuile originale
             if (tile)
             {
-                tmx_tile *tile_to_draw = tile; // Par défaut, dessine la tuile statique ou la première frame
+                tmx_tile *tile_to_draw = tile;
 
-                for (int i = 0; i < animated_tiles_count; ++i)
+                // Si la tuile a une animation, mettez à jour son index de frame
+                if (tile->animation && tile->animation_len > 0)
                 {
-                    // Calculate the global GID of the animated tile from its stored info
-                    uint32_t animated_tile_global_gid = animated_tiles_infos[i].tileset_first_gid + animated_tiles_infos[i].local_tile_id;
-
-                    if (animated_tile_global_gid == gid) // Compare with the current tile's GID from the map layer
+                    // Chercher l'info d'animation pour cette tuile
+                    AnimatedTileInfo *info = NULL;
+                    for (int i = 0; i < animated_tiles_count; ++i)
                     {
-                        // Correction: Accès direct au tableau de frames et à sa longueur
-                        // 'animation' est un tmx_anim_frame* et 'animation_len' est sa taille
-                        if (animated_tiles_infos[i].tmx_tile_ptr->animation)
-                        { // Vérifier que l'animation existe
-                            tmx_anim_frame current_frame = animated_tiles_infos[i].tmx_tile_ptr->animation[animated_tiles_infos[i].current_frame_index];
-                            // CORRECTED LINE: Use tileset_first_gid to get the actual global ID of the animation frame
-                            tile_to_draw = m->tiles[animated_tiles_infos[i].tileset_first_gid + current_frame.tile_id];
+                        uint32_t animated_tile_global_gid = animated_tiles_infos[i].tileset_first_gid + animated_tiles_infos[i].local_tile_id;
+                        if (animated_tile_global_gid == gid)
+                        {
+                            info = &animated_tiles_infos[i];
+                            break;
                         }
-                        break;
+                    }
+
+                    if (info) // Si on a trouvé l'info d'animation pour cette tuile
+                    {
+                        tmx_anim_frame current_frame_data = info->tmx_tile_ptr->animation[info->current_frame_index];
+
+                        if (current_time - info->frame_start_time >= current_frame_data.duration)
+                        {
+                            info->current_frame_index++;
+                            if (info->current_frame_index >= info->tmx_tile_ptr->animation_len)
+                            {
+                                info->current_frame_index = 0;
+                            }
+                            info->frame_start_time = current_time;
+                        }
+                        // Utiliser la GID de la frame actuelle pour obtenir la tuile à dessiner
+                        tile_to_draw = m->tiles[info->tileset_first_gid + info->tmx_tile_ptr->animation[info->current_frame_index].tile_id];
                     }
                 }
                 draw_tile(ren, tile_to_draw, x * m->tile_width, y * m->tile_height, m->tile_width, m->tile_height);
@@ -185,11 +215,11 @@ static void draw_objects(SDL_Renderer *ren, tmx_object_group *og)
     {
         if (o->visible && o->obj_type == OT_SQUARE)
         {
+            SDL_SetRenderDrawColor(ren, 255, 0, 0, 128); // Rouge semi-transparent
             rect.x = o->x;
             rect.y = o->y;
             rect.w = o->width;
             rect.h = o->height;
-            SDL_SetRenderDrawColor(ren, 255, 0, 0, 128);
             SDL_RenderDrawRect(ren, &rect);
         }
         o = o->next;
@@ -205,7 +235,7 @@ static void draw_image_layer(SDL_Renderer *ren, tmx_image *img)
     SDL_RenderCopy(ren, tex, NULL, &dst);
 }
 
-static void recurse_layers(SDL_Renderer *ren, tmx_map *m, tmx_layer *layer)
+static void recurse_layers(SDL_Renderer *ren, tmx_map *m, tmx_layer *layer, uint32_t current_time)
 {
     while (layer)
     {
@@ -214,10 +244,10 @@ static void recurse_layers(SDL_Renderer *ren, tmx_map *m, tmx_layer *layer)
             switch (layer->type)
             {
             case L_GROUP:
-                recurse_layers(ren, m, layer->content.group_head);
+                recurse_layers(ren, m, layer->content.group_head, current_time);
                 break;
             case L_LAYER:
-                draw_layer(ren, m, layer);
+                draw_layer(ren, m, layer, current_time); // Passe current_time à draw_layer
                 break;
             case L_OBJGR:
                 draw_objects(ren, layer->content.objgr);
@@ -233,14 +263,13 @@ static void recurse_layers(SDL_Renderer *ren, tmx_map *m, tmx_layer *layer)
     }
 }
 
-void Map_afficherGroup(SDL_Renderer *renderer, Map *map, const char *groupName, int offsetX, int offsetY)
+// Map_afficherGroup prend maintenant un 'current_time'
+void Map_afficherGroup(SDL_Renderer *renderer, Map *map, const char *groupName, int offsetX, int offsetY, uint32_t current_time)
 {
-    // Note: offsetX et offsetY ne sont pas utilisés dans cette implémentation directe
-    // Si vous voulez un scrolling, vous devrez ajuster les positions dx, dy dans draw_tile.
     tmx_layer *layer = tmx_find_layer_by_name(map->tmx_map, groupName);
     if (layer && layer->type == L_GROUP)
     {
-        recurse_layers(renderer, map->tmx_map, layer->content.group_head);
+        recurse_layers(renderer, map->tmx_map, layer->content.group_head, current_time);
     }
 }
 
@@ -305,49 +334,31 @@ bool Map_setTile(Map *map, const char *layerName, int x, int y, int gid)
 
 void Map_initAnimations(Map *map)
 {
+    // Clear previous animated tiles info if map is reloaded
+    if (animated_tiles_infos)
+    {
+        free(animated_tiles_infos);
+        animated_tiles_infos = NULL;
+        animated_tiles_count = 0;
+        animated_tiles_capacity = 0;
+    }
+
     tmx_tileset_list *ts_list_item = map->tmx_map->ts_head;
     while (ts_list_item)
     {
         tmx_tileset *tileset = ts_list_item->tileset;
-        if (tileset->tiles) // Check if the tileset has individual tiles defined
+        if (tileset->tiles)
         {
-            uint32_t current_first_gid = ts_list_item->firstgid; // Get the first GID for this tileset
+            uint32_t current_first_gid = ts_list_item->firstgid;
             for (unsigned int i = 0; i < tileset->tilecount; ++i)
             {
-                tmx_tile *tile = &tileset->tiles[i]; // Get pointer to the tmx_tile structure
-                // Si la tuile a une animation (animation pointer non NULL)
+                tmx_tile *tile = &tileset->tiles[i];
                 if (tile && tile->animation)
                 {
-                    add_animated_tile_info(tile, current_first_gid); // Pass first_gid
+                    add_animated_tile_info(tile, current_first_gid);
                 }
             }
         }
-        ts_list_item = ts_list_item->next; // Passer au tileset suivant dans la liste
-    }
-}
-void Map_updateAnimations(Map *map, uint32_t current_time)
-{
-    for (int i = 0; i < animated_tiles_count; ++i)
-    {
-        AnimatedTileInfo *info = &animated_tiles_infos[i];
-
-        // Correction: Accès direct au tableau de frames et à sa longueur
-        // 'animation' est un tmx_anim_frame* et 'animation_len' est sa taille
-        if (info->tmx_tile_ptr->animation && info->tmx_tile_ptr->animation_len > 0)
-        { // Vérifier que l'animation existe et a des frames
-            tmx_anim_frame current_frame = info->tmx_tile_ptr->animation[info->current_frame_index];
-
-            if (current_time - info->frame_start_time >= current_frame.duration)
-            {
-                // Passer à la frame suivante
-                info->current_frame_index++;
-                // Utiliser animation_len comme le 'count' de l'animation
-                if (info->current_frame_index >= info->tmx_tile_ptr->animation_len)
-                {
-                    info->current_frame_index = 0; // Revenir au début de l'animation
-                }
-                info->frame_start_time = current_time; // Mettre à jour le temps de début de la frame
-            }
-        }
+        ts_list_item = ts_list_item->next;
     }
 }

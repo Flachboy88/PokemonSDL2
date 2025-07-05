@@ -5,6 +5,7 @@
 #include <SDL2/SDL.h>
 #include <tmx.h>
 #include <stdbool.h>
+#include <stdint.h> // Pour uint32_t
 
 // Structure pour stocker les informations de la carte
 typedef struct
@@ -23,15 +24,6 @@ typedef struct
     char *type; // Optional: "Collision", "Wall", etc.
 } CollisionObject;
 
-typedef struct
-{
-    uint32_t local_tile_id;     // Local ID of the animated tile within its tileset
-    uint32_t tileset_first_gid; // First GID of the tileset this tile belongs to
-    tmx_tile *tmx_tile_ptr;     // Pointeur vers la structure tmx_tile pour cette animation
-    int current_frame_index;    // Index de la frame actuelle dans l'animation
-    uint32_t frame_start_time;  // Temps (en ms) où la frame actuelle a commencé à s'afficher
-} AnimatedTileInfo;
-
 // Charge une carte TMX et ses ressources associées
 Map *loadMap(const char *filePath, SDL_Renderer *renderer);
 
@@ -39,7 +31,8 @@ Map *loadMap(const char *filePath, SDL_Renderer *renderer);
 void freeMap(Map *map);
 
 // Affiche un groupe de calques spécifique de la carte
-void Map_afficherGroup(SDL_Renderer *renderer, Map *map, const char *groupName, int offsetX, int offsetY);
+// 'current_time' est ajouté pour la gestion des animations par le groupe
+void Map_afficherGroup(SDL_Renderer *renderer, Map *map, const char *groupName, int offsetX, int offsetY, uint32_t current_time);
 
 // Récupère les objets de collision d'un groupe d'objets spécifique
 CollisionObject *Map_getCollisionObjects(Map *map, const char *objectGroupName, int *count);
@@ -52,9 +45,7 @@ bool Map_getPlayerSpawn(Map *map, float *x, float *y);
 bool Map_setTile(Map *map, const char *layerName, int x, int y, int gid);
 
 // Initialise les informations d'animation pour toutes les tuiles animées de la carte
+// Cette fonction est maintenant déclarée ici car elle est appelée depuis main.c
 void Map_initAnimations(Map *map);
-
-// Met à jour l'état des animations de la carte en fonction du temps
-void Map_updateAnimations(Map *map, uint32_t current_time);
 
 #endif // MAP_H

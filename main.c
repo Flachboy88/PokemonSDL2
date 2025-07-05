@@ -4,163 +4,144 @@
 #include <SDL2/SDL_image.h>
 #include "framework/map.h"
 #include "framework/sprite.h"
+#include "game/entity.h"
+#include "game/player.h"
+#include "systems/utils.h"
+#include "systems/inputs.h"
 
-typedef struct {
-    float x, y;             // Position
-    float width, height;    // Taille
-    Sprite *sprite;         // Sprite de l'entité
-    bool visible;           // Visibilité
-    int layer;              // Layer de rendu (pour tri)
-} Entity;
+Map *loadAndInitMap(const char *name, SDL_Renderer *renderer)
+{
+    char *full_path = buildFilePath("resources/maps/", name, ".tmx");
+    if (!full_path)
+        return NULL;
 
-typedef struct {
-    Entity entity;          // Hérite d'Entity
-    float speed;            // Vitesse de déplacement
-    int health;             // Points de vie
-    bool moving;            // En mouvement
-    SDL_RendererFlip flip;  // Direction (flip horizontal)
-} Player;
-
-Entity* createEntity(float x, float y, float width, float height, Sprite *sprite, int layer) {
-    Entity *entity = malloc(sizeof(Entity));
-    entity->x = x;
-    entity->y = y;
-    entity->width = width;
-    entity->height = height;
-    entity->sprite = sprite;
-    entity->visible = true;
-    entity->layer = layer;
-    return entity;
-}
-
-void updateEntity(Entity *entity) {
-    if (entity->sprite) {
-        updateSprite(entity->sprite);
-    }
-}
-
-void renderEntity(Entity *entity, SDL_Renderer *renderer) {
-    if (entity->visible && entity->sprite) {
-        renderSprite(entity->sprite, renderer, (int)entity->x, (int)entity->y);
-    }
-}
-
-Player* createPlayer(float x, float y, SDL_Renderer *renderer) {
-    Player *player = malloc(sizeof(Player));
-    
-    // Charger le sprite du player
-    Sprite *sprite = createSpriteWithColumns("resources/sprites/player.png", 4, 5,25,32,renderer); // Exemple: 4 colsx5rows grid
-    if (!sprite) {
-        free(player);
+    Map *map = loadMap(full_path, renderer);
+    if (!map)
+    {
+        fprintf(stderr, "Erreur chargement map '%s'\n", full_path);
+        free(full_path);
         return NULL;
     }
-    
-    addSimpleAnimation(sprite, "idle", 0, 3, 200, true);      // Frames 0-3, 200ms par frame, en boucle
-    addSimpleAnimation(sprite, "walk", 4, 7, 150, true);      // Frames 4-7, 150ms par frame, en boucle
-    addSimpleAnimation(sprite, "attack", 8, 11, 100, false);  // Frames 8-11, 100ms par frame, pas en boucle
-    
-    // Initialiser l'entité
-    player->entity.x = x;
-    player->entity.y = y;
-    player->entity.width = sprite->frame_width;
-    player->entity.height = sprite->frame_height;
-    player->entity.sprite = sprite;
-    player->entity.visible = true;
-    player->entity.layer = 1; // Au-dessus du background
-    
-    // Initialiser les propriétés du player
-    player->speed = 100.0f; // pixels par seconde
-    player->health = 100;
-    player->moving = false;
-    player->flip = SDL_FLIP_NONE;
-    
-    // Commencer avec l'animation idle
-    playAnimation(sprite, "idle");
-    
-    return player;
-}
 
-void updatePlayer(Player *player, float deltaTime) {
-    updateEntity(&player->entity);
-    
-    // Logique de mouvement
-}
-
-void renderPlayer(Player *player, SDL_Renderer *renderer) {
-    if (player->entity.visible && player->entity.sprite) {
-        renderSpriteFlipped(player->entity.sprite, renderer, 
-                          (int)player->entity.x, (int)player->entity.y, 
-                          player->flip);
+    float spawn_x, spawn_y;
+    if (Map_getPlayerSpawn(map, &spawn_x, &spawn_y))
+    {
+        map->default_x_spawn = spawn_x;
+        map->default_y_spawn = spawn_y;
+        printf("Map chargée : spawn en (%.2f, %.2f)\n", map->default_x_spawn, map->default_y_spawn);
     }
+    else
+    {
+        printf("Map chargée, mais aucun point de spawn du joueur trouvé ('PlayerSpawn' dans le groupe 'PlayerObject'). Utilisation de (0,0).\n");
+    }
+
+    Map_initAnimations(map);
+
+    free(full_path);
+    return map;
 }
 
-void freePlayer(Player *player) {
-    if (player->entity.sprite) {
-        freeSprite(player->entity.sprite);
-        player->entity.sprite = NULL;  // Éviter double free
+bool handleEvents(SDL_Event *event, Input *input)
+{
+    while (SDL_PollEvent(event))
+    {
+        if (event->type == SDL_QUIT)
+        {
+            return false;
+        }
     }
-    free(player);
+
+    // Gestion des touches en temps réel
+    const Uint8 *keystate = SDL_GetKeyboardState(NULL);
+
+    input->left = keystate[SDL_SCANCODE_LEFT] || keystate[SDL_SCANCODE_A];
+    input->right = keystate[SDL_SCANCODE_RIGHT] || keystate[SDL_SCANCODE_D];
+    input->up = keystate[SDL_SCANCODE_UP] || keystate[SDL_SCANCODE_W];
+    input->down = keystate[SDL_SCANCODE_DOWN] || keystate[SDL_SCANCODE_S];
+
+    return true;
+}
+
+void updateData(Player *player, Input *input, float deltaTime)
+{
+    updatePlayerWithInput(player, input, deltaTime);
+}
+
+void updateGraphics(SDL_Renderer *renderer, Map *map, Player *player, Uint32 currentTime)
+{
+    SDL_SetRenderDrawColor(renderer, 30, 30, 30, 255);
+    SDL_RenderClear(renderer);
+
+    // Afficher tous les calques du groupe Background et mettre à jour leurs animations
+    Map_afficherGroup(renderer, map, "Background", 0, 0, currentTime);
+
+    // Afficher tous les calques du groupe PremierPlan et mettre à jour leurs animations
+    Map_afficherGroup(renderer, map, "PremierPlan", 0, 0, currentTime);
+
+    // Afficher le joueur
+    renderPlayer(player, renderer);
+
+    // Afficher tous les calques du groupe SecondPlan et mettre à jour leurs animations
+    Map_afficherGroup(renderer, map, "SecondPlan", 0, 0, currentTime);
+
+    SDL_RenderPresent(renderer);
 }
 
 int main(int argc, char *argv[])
 {
-    SDL_Init(SDL_INIT_VIDEO);
-    SDL_Window *window = SDL_CreateWindow("Jeu", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 600, 0);
-    SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+    SDL_Window *window = NULL;
+    SDL_Renderer *renderer = NULL;
 
-    if (IMG_Init(IMG_INIT_PNG) == 0)
+    if (!InitSDL(&window, &renderer, 800, 600))
     {
-        fprintf(stderr, "Erreur d'initialisation SDL_image : %s\n", IMG_GetError());
-        // gérer l'erreur...
-    }
-
-    Map *map = loadMap("resources/maps/map1.tmj", renderer);
-    if (!map)
-    {
-        fprintf(stderr, "Erreur chargement map\n");
+        fprintf(stderr, "Erreur InitSDL\n");
         return 1;
     }
 
-    printf("map chargee\n");
+    Map *map = loadAndInitMap("map3", renderer);
+    if (!map)
+    {
+        IMG_Quit();
+        SDL_DestroyRenderer(renderer);
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return 1;
+    }
 
-    Player *player = createPlayer(250, 100, renderer);
-    if (!player) {
+    Player *player = InitPlayer(map->default_x_spawn, map->default_y_spawn, renderer);
+    if (!player)
+    {
         fprintf(stderr, "Erreur création player\n");
         freeMap(map);
+        SDL_DestroyRenderer(renderer);
+        SDL_DestroyWindow(window);
+        IMG_Quit();
+        SDL_Quit();
         return 1;
     }
 
     bool running = true;
     SDL_Event event;
+    Input input = {false, false, false, false};
+    Uint32 lastTime = SDL_GetTicks();
 
     while (running)
     {
-        // Handle input
-        while (SDL_PollEvent(&event))
-        {
-            if (event.type == SDL_QUIT)
-                running = false;
-            // handleEvents(event); ← à faire plus tard
-        }
+        // Calcul du deltaTime
+        Uint32 currentTime = SDL_GetTicks();
+        float deltaTime = (currentTime - lastTime) / 1000.0f;
+        lastTime = currentTime;
 
-        // update(); ← futur update logique
+        // Gestion des événements
+        running = handleEvents(&event, &input);
 
-        // rendering
-        SDL_SetRenderDrawColor(renderer, 30, 30, 30, 255);
-        SDL_RenderClear(renderer);
-        
-        renderMapBeforeLayer(map, renderer, "Entities");
+        // Mise à jour logique
+        updateData(player, &input, deltaTime);
 
-        // Update et render le player
-        updatePlayer(player, 16.0f / 1000.0f);
-        renderPlayer(player, renderer);
+        // Rendu graphique (passe currentTime)
+        updateGraphics(renderer, map, player, currentTime);
 
-        // Render les layers au-dessus du player
-        renderMapAfterLayer(map, renderer, "Entities");
-        
-        SDL_RenderPresent(renderer);
-
-        SDL_Delay(16); // ~60fps
+        // SDL_Delay(16); // ~60fps
     }
 
     freeMap(map);
