@@ -130,6 +130,7 @@ Map *loadMap(const char *filePath, SDL_Renderer *renderer)
     map->collisions = Map_getCollisionObjects(map, "CollisionObject", &map->collision_count);
 
     DeBugMap(map);
+    Map_initAnimations(map);
 
     return map;
 }
@@ -144,6 +145,11 @@ void freeMap(Map *map)
             {
                 free(map->collisions[i].name);
                 free(map->collisions[i].type);
+                // Libérer les points des polygones
+                if (map->collisions[i].polygon_points)
+                {
+                    free(map->collisions[i].polygon_points);
+                }
             }
             free(map->collisions);
         }
@@ -151,7 +157,7 @@ void freeMap(Map *map)
         tmx_map_free(map->tmx_map);
         free(map);
     }
-    if (animated_tiles_infos) // Libérer la mémoire des infos d'animation
+    if (animated_tiles_infos)
     {
         free(animated_tiles_infos);
         animated_tiles_infos = NULL;
@@ -326,6 +332,27 @@ CollisionObject *Map_getCollisionObjects(Map *map, const char *objectGroupName, 
         arr[i].rect.h = o->height;
         arr[i].name = o->name ? strdup(o->name) : NULL;
         arr[i].type = o->type ? strdup(o->type) : NULL;
+
+        // Gérer les polygones
+        if (o->obj_type == OT_POLYGON && o->content.shape->points_len > 0)
+        {
+            arr[i].is_polygon = true;
+            arr[i].polygon_count = o->content.shape->points_len;
+            arr[i].polygon_points = malloc(arr[i].polygon_count * sizeof(Point));
+
+            for (int j = 0; j < arr[i].polygon_count; j++)
+            {
+                arr[i].polygon_points[j].x = o->x + o->content.shape->points[j][0];
+                arr[i].polygon_points[j].y = o->y + o->content.shape->points[j][1];
+            }
+        }
+        else
+        {
+            arr[i].is_polygon = false;
+            arr[i].polygon_points = NULL;
+            arr[i].polygon_count = 0;
+        }
+
         i++;
     }
     *count = c;
@@ -390,4 +417,58 @@ void Map_initAnimations(Map *map)
         }
         ts_list_item = ts_list_item->next;
     }
+}
+void Map_drawCollisions(SDL_Renderer *renderer, Map *map)
+{
+    // printf("Drawing %d collision objects\n", map->collision_count);
+    if (!map || !renderer)
+        return;
+
+    // Sauvegarder la couleur actuelle
+    Uint8 r, g, b, a;
+    SDL_GetRenderDrawColor(renderer, &r, &g, &b, &a);
+
+    // Couleur rouge opaque pour les collisions
+    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+
+    for (int i = 0; i < map->collision_count; i++)
+    {
+        if (map->collisions[i].is_polygon)
+        {
+            // Dessiner le polygone avec des lignes plus épaisses
+            Point *points = map->collisions[i].polygon_points;
+            int count = map->collisions[i].polygon_count;
+
+            for (int j = 0; j < count; j++)
+            {
+                int next = (j + 1) % count;
+                // Dessiner plusieurs lignes pour épaissir
+                for (int k = -1; k <= 1; k++)
+                {
+                    for (int l = -1; l <= 1; l++)
+                    {
+                        SDL_RenderDrawLine(renderer,
+                                           (int)points[j].x + k, (int)points[j].y + l,
+                                           (int)points[next].x + k, (int)points[next].y + l);
+                    }
+                }
+            }
+        }
+        else
+        {
+            // Dessiner le rectangle avec un contour épais
+            SDL_Rect rect = map->collisions[i].rect;
+            for (int k = -1; k <= 1; k++)
+            {
+                for (int l = -1; l <= 1; l++)
+                {
+                    SDL_Rect thickRect = {rect.x + k, rect.y + l, rect.w, rect.h};
+                    SDL_RenderDrawRect(renderer, &thickRect);
+                }
+            }
+        }
+    }
+
+    // Restaurer la couleur précédente
+    SDL_SetRenderDrawColor(renderer, r, g, b, a);
 }

@@ -4,40 +4,68 @@
 #include <SDL2/SDL_image.h>
 
 const int LARGEUR_HITBOX = 10;
-const int HAUTEUR_HITBOX = 10;
+const int HAUTEUR_HITBOX = 15;
 
-Player *InitPlayer(float x, float y, SDL_Renderer *renderer)
+void initWalkSprite(Player *player, SDL_Renderer *renderer)
 {
-    Player *player = malloc(sizeof(Player));
-
-    Sprite *sprite = createSpriteWithColumns("resources/sprites/player.png", 4, 5, 25, 32, renderer); // 4 cols x 5 rows
-    if (!sprite)
+    player->walkSprite = createSpriteWithColumns("resources/sprites/player.png", 4, 5, 25, 32, renderer); // 4 cols x 5 rows
+    if (!player->walkSprite)
     {
         free(player);
         return NULL;
     }
 
-    addSimpleAnimation(sprite, "defaut_bas", 0, 0, 0, false);
-    addSimpleAnimation(sprite, "defaut_haut", 12, 12, 0, false);
-    addSimpleAnimation(sprite, "defaut_droite", 8, 8, 0, false);
-    addSimpleAnimation(sprite, "defaut_gauche", 4, 4, 0, false);
-    addSimpleAnimation(sprite, "defaut_bas", 3, 3, 0, false);
+    addSimpleAnimation(player->walkSprite, "defaut_bas", 0, 0, 0, false);
+    addSimpleAnimation(player->walkSprite, "defaut_haut", 12, 12, 0, false);
+    addSimpleAnimation(player->walkSprite, "defaut_droite", 8, 8, 0, false);
+    addSimpleAnimation(player->walkSprite, "defaut_gauche", 4, 4, 0, false);
+    addSimpleAnimation(player->walkSprite, "defaut_bas", 3, 3, 0, false);
 
-    addSimpleAnimation(sprite, "walk_bas", 0, 3, 150, true);
-    addSimpleAnimation(sprite, "walk_haut", 12, 15, 150, true);
-    addSimpleAnimation(sprite, "walk_droite", 8, 11, 150, true);
-    addSimpleAnimation(sprite, "walk_gauche", 4, 7, 150, true);
+    addSimpleAnimation(player->walkSprite, "walk_bas", 0, 3, 150, true);
+    addSimpleAnimation(player->walkSprite, "walk_haut", 12, 15, 150, true);
+    addSimpleAnimation(player->walkSprite, "walk_droite", 8, 11, 150, true);
+    addSimpleAnimation(player->walkSprite, "walk_gauche", 4, 7, 150, true);
+}
 
+void initBikeSprite(Player *player, SDL_Renderer *renderer)
+{
+    player->bikeSprite = createSpriteWithColumns("resources/sprites/player_bike.png", 4, 5, 25, 32, renderer); // 4 cols x 5 rows
+    if (!player->bikeSprite)
+    {
+        free(player);
+        return;
+    }
+
+    addSimpleAnimation(player->bikeSprite, "bike_bas", 0, 0, 0, false);
+    addSimpleAnimation(player->bikeSprite, "bike_haut", 12, 12, 0, false);
+    addSimpleAnimation(player->bikeSprite, "bike_droite", 8, 8, 0, false);
+    addSimpleAnimation(player->bikeSprite, "bike_gauche", 4, 4, 0, false);
+    addSimpleAnimation(player->bikeSprite, "bike_bas", 3, 3, 0, false);
+
+    addSimpleAnimation(player->bikeSprite, "bike_walk_bas", 0, 3, 150, true);
+    addSimpleAnimation(player->bikeSprite, "bike_walk_haut", 12, 15, 150, true);
+    addSimpleAnimation(player->bikeSprite, "bike_walk_droite", 8, 11, 150, true);
+    addSimpleAnimation(player->bikeSprite, "bike_walk_gauche", 4, 7, 150, true);
+}
+
+Player *InitPlayer(float x, float y, SDL_Renderer *renderer)
+{
+    Player *player = malloc(sizeof(Player));
+
+    initWalkSprite(player, renderer);
+    initBikeSprite(player, renderer);
+
+    player->currentSprite = player->walkSprite;
     player->entity.x = x;
     player->entity.y = y;
-    player->entity.width = sprite->frame_width;
-    player->entity.height = sprite->frame_height;
-    player->entity.sprite = sprite;
+    player->entity.width = player->walkSprite->frame_width;
+    player->entity.height = player->walkSprite->frame_height;
+    player->entity.sprite = player->currentSprite;
     player->entity.visible = true;
     player->entity.layer = 1;
 
-    player->entity.hitbox.x = x + sprite->frame_width / 2 - LARGEUR_HITBOX / 2;
-    player->entity.hitbox.y = y + sprite->frame_height - HAUTEUR_HITBOX;
+    player->entity.hitbox.x = x + player->walkSprite->frame_width / 2 - LARGEUR_HITBOX / 2;
+    player->entity.hitbox.y = y + player->walkSprite->frame_height - HAUTEUR_HITBOX;
     player->entity.hitbox.width = LARGEUR_HITBOX;
     player->entity.hitbox.height = HAUTEUR_HITBOX;
 
@@ -48,16 +76,18 @@ Player *InitPlayer(float x, float y, SDL_Renderer *renderer)
     player->targetY = y;
     player->hasTarget = false;
 
-    player->speed = 50.0f; // pixels par seconde
+    player->mode = WALK_MOD;
+    setPlayerSpeedMode(player);
     player->moving = false;
+
     player->flip = SDL_FLIP_NONE;
 
-    playAnimation(sprite, "defaut_bas");
+    playAnimation(player->currentSprite, "defaut_bas");
 
     return player;
 }
 
-void updatePlayerWithInput(Player *player, Input *input, float deltaTime)
+void updatePlayerWithInput(Player *player, Input *input, float deltaTime, Map *map)
 {
     updateEntity(&player->entity);
 
@@ -66,49 +96,69 @@ void updatePlayerWithInput(Player *player, Input *input, float deltaTime)
 
     const char *newAnimation = NULL;
 
-    if (player->hasTarget)
+    if (input->left && !player->moving)
     {
-        // On ignore les inputs, on continue dans la direction actuelle
-        deplacement(player, player->lastDirection, deltaTime);
+        player->lastDirection = 0;
         player->moving = true;
-        newAnimation = walkAnimFromDir(player->lastDirection);
+        deplacement(player, 0, deltaTime, map);
+        newAnimation = "walk_gauche";
+    }
+    else if (input->right && !player->moving)
+    {
+        player->lastDirection = 1;
+        player->moving = true;
+        deplacement(player, 1, deltaTime, map);
+        newAnimation = "walk_droite";
+    }
+    else if (input->up && !player->moving)
+    {
+        player->lastDirection = 2;
+        player->moving = true;
+        deplacement(player, 2, deltaTime, map);
+        newAnimation = "walk_haut";
+    }
+    else if (input->down && !player->moving)
+    {
+        player->lastDirection = 3;
+        player->moving = true;
+        deplacement(player, 3, deltaTime, map);
+        newAnimation = "walk_bas";
+    }
+    else if (input->space)
+    {
+        if (player->mode == WALK_MOD)
+        {
+            setPlayerMode(player, BIKE_MOD);
+        }
+        else if (player->mode == BIKE_MOD)
+        {
+            setPlayerMode(player, WALK_MOD);
+        }
+        newAnimation = derniereDir(player);
+    }
+    else if (input->r_key)
+    {
+        if (player->mode == WALK_MOD)
+        {
+            setPlayerMode(player, RUN_MOD);
+        }
+        else if (player->mode == RUN_MOD)
+        {
+            setPlayerMode(player, WALK_MOD);
+        }
+        newAnimation = derniereDir(player);
+    }
+    else if (player->hasTarget)
+    {
+        // Continue le mouvement en cours seulement si on a une cible
+        deplacement(player, player->lastDirection, deltaTime, map);
+        player->moving = true;
+        newAnimation = getWalkAnimFromDir(player, player->lastDirection);
     }
     else
     {
-        // On accepte les inputs uniquement si pas de cible
-        if (input->left && !player->moving)
-        {
-            player->lastDirection = 0;
-            player->moving = true;
-            deplacement(player, 0, deltaTime);
-            newAnimation = "walk_gauche";
-        }
-        else if (input->right && !player->moving)
-        {
-            player->lastDirection = 1;
-            player->moving = true;
-            deplacement(player, 1, deltaTime);
-            newAnimation = "walk_droite";
-        }
-        else if (input->up && !player->moving)
-        {
-            player->lastDirection = 2;
-            player->moving = true;
-            deplacement(player, 2, deltaTime);
-            newAnimation = "walk_haut";
-        }
-        else if (input->down && !player->moving)
-        {
-            player->lastDirection = 3;
-            player->moving = true;
-            deplacement(player, 3, deltaTime);
-            newAnimation = "walk_bas";
-        }
-        else
-        {
-            player->moving = false;
-            newAnimation = derniereDir(player);
-        }
+        player->moving = false;
+        newAnimation = derniereDir(player);
     }
 
     if (strcmp(player->currentAnimationName, newAnimation) != 0)
@@ -116,6 +166,8 @@ void updatePlayerWithInput(Player *player, Input *input, float deltaTime)
         playAnimation(player->entity.sprite, newAnimation);
         player->currentAnimationName = newAnimation;
     }
+
+    // printf("Player: x=%.2f, y=%.2f, dir=%d\n", player->entity.x, player->entity.y, player->lastDirection);
 }
 
 void renderPlayer(Player *player, SDL_Renderer *renderer)
@@ -141,17 +193,19 @@ void freePlayer(Player *player)
 
 char *derniereDir(Player *player)
 {
+    const char *prefix = (player->mode == BIKE_MOD) ? "bike_" : "defaut_";
+
     if (player->lastDirection == 0)
-        return "defaut_gauche";
+        return (player->mode == BIKE_MOD) ? "bike_gauche" : "defaut_gauche";
     else if (player->lastDirection == 1)
-        return "defaut_droite";
+        return (player->mode == BIKE_MOD) ? "bike_droite" : "defaut_droite";
     else if (player->lastDirection == 2)
-        return "defaut_haut";
+        return (player->mode == BIKE_MOD) ? "bike_haut" : "defaut_haut";
     else
-        return "defaut_bas";
+        return (player->mode == BIKE_MOD) ? "bike_bas" : "defaut_bas";
 }
 
-void deplacement(Player *player, int dir, float deltaTime)
+void deplacement(Player *player, int dir, float deltaTime, Map *map)
 {
     // Si pas de cible, définir la prochaine cible (multiple de n)
     int n = 16;
@@ -190,8 +244,22 @@ void deplacement(Player *player, int dir, float deltaTime)
         if (moveDistance > distance)
             moveDistance = distance; // ne pas dépasser la cible
 
-        player->entity.x += (dx / distance) * moveDistance;
-        player->entity.y += (dy / distance) * moveDistance;
+        float newX = player->entity.x + (dx / distance) * moveDistance;
+        float newY = player->entity.y + (dy / distance) * moveDistance;
+
+        // Vérifier les collisions avec la nouvelle position
+        if (!checkCollisionWithMap(player, newX, newY, map))
+        {
+            // Pas de collision, on peut se déplacer
+            player->entity.x = newX;
+            player->entity.y = newY;
+        }
+        else
+        {
+            // Collision détectée, on annule le mouvement et on supprime la cible
+            player->hasTarget = false;
+            player->moving = false;
+        }
     }
     else
     {
@@ -214,5 +282,170 @@ const char *walkAnimFromDir(int dir)
         return "walk_haut";
     default:
         return "walk_bas";
+    }
+}
+
+bool pointInPolygon(Point point, Point *polygon, int count)
+{
+    bool inside = false;
+    int j = count - 1;
+
+    for (int i = 0; i < count; i++)
+    {
+        if (((polygon[i].y > point.y) != (polygon[j].y > point.y)) &&
+            (point.x < (polygon[j].x - polygon[i].x) * (point.y - polygon[i].y) / (polygon[j].y - polygon[i].y) + polygon[i].x))
+        {
+            inside = !inside;
+        }
+        j = i;
+    }
+    return inside;
+}
+
+bool rectangleIntersectsPolygon(Hitbox rect, Point *polygon, int count)
+{
+    // Vérifier si un des coins du rectangle est dans le polygone
+    Point corners[4] = {
+        {rect.x, rect.y},
+        {rect.x + rect.width, rect.y},
+        {rect.x + rect.width, rect.y + rect.height},
+        {rect.x, rect.y + rect.height}};
+
+    for (int i = 0; i < 4; i++)
+    {
+        if (pointInPolygon(corners[i], polygon, count))
+        {
+            return true;
+        }
+    }
+
+    // Vérifier si un des points du polygone est dans le rectangle
+    for (int i = 0; i < count; i++)
+    {
+        if (polygon[i].x >= rect.x && polygon[i].x <= rect.x + rect.width &&
+            polygon[i].y >= rect.y && polygon[i].y <= rect.y + rect.height)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool checkCollisionWithMap(Player *player, float newX, float newY, Map *map)
+{
+    // Créer une hitbox temporaire avec la nouvelle position
+    Hitbox tempHitbox;
+    tempHitbox.x = newX + player->entity.sprite->frame_width / 2 - LARGEUR_HITBOX / 2;
+    tempHitbox.y = newY + player->entity.sprite->frame_height - HAUTEUR_HITBOX;
+    tempHitbox.width = LARGEUR_HITBOX;
+    tempHitbox.height = HAUTEUR_HITBOX;
+
+    // Vérifier les collisions avec tous les objets de collision de la map
+    for (int i = 0; i < map->collision_count; i++)
+    {
+        if (map->collisions[i].is_polygon)
+        {
+            // Collision avec un polygone
+            if (rectangleIntersectsPolygon(tempHitbox, map->collisions[i].polygon_points, map->collisions[i].polygon_count))
+            {
+                return true;
+            }
+        }
+        else
+        {
+            // Collision avec un rectangle (code existant)
+            SDL_Rect collisionRect = map->collisions[i].rect;
+
+            if (tempHitbox.x < collisionRect.x + collisionRect.w &&
+                tempHitbox.x + tempHitbox.width > collisionRect.x &&
+                tempHitbox.y < collisionRect.y + collisionRect.h &&
+                tempHitbox.y + tempHitbox.height > collisionRect.y)
+            {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+void setPlayerMode(Player *player, PlayerMode mode)
+{
+    if (!player)
+        return;
+
+    player->mode = mode;
+    setPlayerSpeedMode(player);
+    setPlayerSprite(player);
+
+    player->currentAnimationName = derniereDir(player);
+    playAnimation(player->currentSprite, player->currentAnimationName);
+}
+
+void setPlayerSpeedMode(Player *player)
+{
+    if (!player)
+        return;
+
+    switch (player->mode)
+    {
+    case WALK_MOD:
+        player->speed = 50.0f; // pixels par seconde
+        break;
+    case RUN_MOD:
+        player->speed = 100.0f; // pixels par seconde
+        break;
+    case BIKE_MOD:
+        player->speed = 200.0f; // pixels par seconde
+        break;
+    }
+}
+
+void setPlayerSprite(Player *player)
+{
+    switch (player->mode)
+    {
+    case WALK_MOD:
+        player->currentSprite = player->walkSprite;
+        break;
+    case RUN_MOD:
+        player->currentSprite = player->runSprite;
+        break;
+    case BIKE_MOD:
+        player->currentSprite = player->bikeSprite;
+        break;
+    }
+    player->entity.sprite = player->currentSprite;
+}
+
+const char *getWalkAnimFromDir(Player *player, int dir)
+{
+    if (player->mode == BIKE_MOD)
+    {
+        switch (dir)
+        {
+        case 0:
+            return "bike_walk_gauche";
+        case 1:
+            return "bike_walk_droite";
+        case 2:
+            return "bike_walk_haut";
+        default:
+            return "bike_walk_bas";
+        }
+    }
+    else
+    {
+        switch (dir)
+        {
+        case 0:
+            return "walk_gauche";
+        case 1:
+            return "walk_droite";
+        case 2:
+            return "walk_haut";
+        default:
+            return "walk_bas";
+        }
     }
 }

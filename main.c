@@ -43,11 +43,26 @@ Map *loadAndInitMap(const char *name, SDL_Renderer *renderer)
 
 bool handleEvents(SDL_Event *event, Input *input)
 {
+    input->space = false;
+    input->r_key = false;
+
     while (SDL_PollEvent(event))
     {
         if (event->type == SDL_QUIT)
         {
             return false;
+        }
+
+        if (event->type == SDL_KEYDOWN)
+        {
+            if (event->key.keysym.scancode == SDL_SCANCODE_SPACE)
+            {
+                input->space = true;
+            }
+            else if (event->key.keysym.scancode == SDL_SCANCODE_R)
+            {
+                input->r_key = true;
+            }
         }
     }
 
@@ -62,9 +77,9 @@ bool handleEvents(SDL_Event *event, Input *input)
     return true;
 }
 
-void updateData(Player *player, Input *input, float deltaTime)
+void updateData(Player *player, Input *input, float deltaTime, Map *map)
 {
-    updatePlayerWithInput(player, input, deltaTime);
+    updatePlayerWithInput(player, input, deltaTime, map);
 }
 
 void updateGraphics(SDL_Renderer *renderer, Map *map, Player *player, Uint32 currentTime)
@@ -83,6 +98,8 @@ void updateGraphics(SDL_Renderer *renderer, Map *map, Player *player, Uint32 cur
 
     // Afficher tous les calques du groupe SecondPlan et mettre à jour leurs animations
     Map_afficherGroup(renderer, map, "SecondPlan", 0, 0, currentTime);
+
+    Map_drawCollisions(renderer, map);
 
     SDL_RenderPresent(renderer);
 }
@@ -108,7 +125,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    Player *player = InitPlayer(map->default_x_spawn, map->default_y_spawn, renderer);
+    Player *player = InitPlayer(map->default_x_spawn - 12, map->default_y_spawn - 32, renderer); // revoir calcul
     if (!player)
     {
         fprintf(stderr, "Erreur création player\n");
@@ -122,7 +139,7 @@ int main(int argc, char *argv[])
 
     bool running = true;
     SDL_Event event;
-    Input input = {false, false, false, false};
+    Input input = {false, false, false, false, false, false};
     Uint32 lastTime = SDL_GetTicks();
 
     while (running)
@@ -136,7 +153,7 @@ int main(int argc, char *argv[])
         running = handleEvents(&event, &input);
 
         // Mise à jour logique
-        updateData(player, &input, deltaTime);
+        updateData(player, &input, deltaTime, map);
 
         // Rendu graphique (passe currentTime)
         updateGraphics(renderer, map, player, currentTime);

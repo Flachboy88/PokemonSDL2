@@ -5,7 +5,12 @@
 #include <SDL2/SDL.h>
 #include <tmx.h>
 #include <stdbool.h>
-#include <stdint.h> // Pour uint32_t
+#include <stdint.h>
+
+typedef struct
+{
+    float x, y;
+} Point;
 
 // Structure pour représenter une zone de collision
 typedef struct
@@ -13,6 +18,10 @@ typedef struct
     SDL_Rect rect;
     char *name;
     char *type; // Optional: "Collision", "Wall", etc.
+
+    Point *polygon_points; // Points du polygone
+    int polygon_count;     // Nombre de points
+    bool is_polygon;       // true si c'est un polygone, false si c'est un rectangle
 } CollisionObject;
 
 // Structure pour stocker les informations de la carte
@@ -52,5 +61,6 @@ void Map_initAnimations(Map *map);
 
 // Debug
 void DeBugMap(Map *map);
+void Map_drawCollisions(SDL_Renderer *renderer, Map *map);
 
 #endif // MAP_H

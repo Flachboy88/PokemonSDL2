@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.0" orientation="orthogonal" renderorder="right-down" width="30" height="30" tilewidth="16" tileheight="16" infinite="0" nextlayerid="20" nextobjectid="16">
+<map version="1.10" tiledversion="1.11.0" orientation="orthogonal" renderorder="right-down" width="30" height="30" tilewidth="16" tileheight="16" infinite="0" nextlayerid="20" nextobjectid="21">
  <tileset firstgid="1" name="Tools" tilewidth="16" tileheight="16" tilecount="36" columns="6">
   <image source="../tileset/Sprout Lands - Sprites - Basic pack/Characters/Tools.png" width="96" height="96"/>
   <tile id="14">
@@ -84,8 +84,11 @@
   </layer>
  </group>
  <group id="12" name="Entities">
-  <objectgroup id="16" name="PlayerObject" class="Spawn" visible="0">
-   <object id="12" name="PlayerSpawn" type="Player" x="179.649" y="175.719">
+  <objectgroup id="16" name="PlayerObject" class="Spawn">
+   <object id="12" name="PlayerSpawn" type="Player" x="333.25" y="293.144">
+    <point/>
+   </object>
+   <object id="18" name="PlayerSpawn" type="Player" x="333.25" y="293.144">
     <point/>
    </object>
   </objectgroup>
@@ -107,7 +110,7 @@
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,322,321,0,322,321,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,341,342,345,328,330,329,328,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,341,342,343,344,330,329,328,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -128,9 +131,11 @@
  </group>
  <group id="15" name="Collisions">
   <objectgroup id="18" name="CollisionObject">
-   <object id="13" type="Collision" x="320.697" y="219.614" width="32.4079" height="23.5217"/>
-   <object id="14" type="Collision" x="322.961" y="242.197" width="26.421" height="10.6667"/>
-   <object id="15" name="Collision maison gauche" type="Collision" x="32.546" y="355.989" width="78.1579" height="42.2717"/>
+   <object id="13" type="Collision" x="315.727" y="222.614" width="40.0443" height="29.8626"/>
+   <object id="15" name="Collision maison gauche" type="Collision" x="32.546" y="355.989" width="78.1579" height="60.2717"/>
+   <object id="20" name="TestDroite" type="Collision" x="463.75" y="256">
+    <polygon points="0,0 -31.75,-0.25 -32,-12 -39.25,-13.25 -39.75,-30 -34.75,-36.25 -34.75,-44.25 -41,-49.75 -40.25,-65.5 -21.5,-83 14.5,-82.5 14,-1.25"/>
+   </object>
   </objectgroup>
  </group>
 </map>
