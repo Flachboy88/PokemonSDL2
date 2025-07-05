@@ -347,12 +347,34 @@ void renderPlayer(Player *player, SDL_Renderer *renderer)
 
 void freePlayer(Player *player)
 {
-    if (player->entity.sprite)
+    if (player)
     {
-        freeSprite(player->entity.sprite);
-        player->entity.sprite = NULL; // Éviter double free
+        // Libérer tous les sprites
+        if (player->walkSprite)
+        {
+            freeSprite(player->walkSprite);
+            player->walkSprite = NULL;
+        }
+
+        if (player->bikeSprite)
+        {
+            freeSprite(player->bikeSprite);
+            player->bikeSprite = NULL;
+        }
+
+        /*
+        if (player->runSprite)
+        {
+            freeSprite(player->runSprite);
+            player->runSprite = NULL;
+        }
+        */
+        // Remettre les pointeurs à NULL pour éviter les références dangereuses
+        player->currentSprite = NULL;
+        player->entity.sprite = NULL;
+
+        free(player);
     }
-    free(player);
 }
 
 char *derniereDir(Player *player)
