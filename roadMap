@@ -1,0 +1,49 @@
+FONCTIONELLES
+
+-  Charger Map
+-  Afficher Map
+-  Charger Sprite
+-  Afficher Sprite
+-  Charger Animation
+-  Afficher Animation
+-  Creation Entity
+-  Creation du Player
+-  Gestion des collisions
+-  Gestion des inputs (walk, bike)
+-  Gestion des mouvements
+-  Gestion des animations
+-  Ajouter PNJ ( sprite, animations, mouvements )
+
+A IMPLEMENTER
+
+-  Ajouter caméra (suit le joueur et se déplace en fonction de la direction)
+-  Ajouter système de spawn avec ports (maison deux portes, nom map + nom maison + port)
+-  Ajouter téléporteur vers autre carte ( nom map + nom téléporteur + port, coordonnées du spawn joueur après le téléporteur)
+-  Ajouter à map une collection de téléporteurs
+-  Ajouter à map une collection de PNJ
+-  Ajouter un Game qui connait les infos du jeu (nom map en cours, un player)
+-  Ajouter système d'inventaire (endroit pokéballs, endroit potions etc. , + touche pour ouvrir/fermer l'inventaire)
+-  Ajout d'un ItemManager
+-  Ajouter système de sauvegarde (Game) V1
+-  Ajout pokémon (sprites, attacks, infos (hp, xp, etc.) format JSON ?)
+-  Revoir inventaire (gestion pokémon et items) //si pas fait 
+-  Ajout arène combat (sprites, infos, attacks, gain xp)
+-  Ajout haute herbe (animations si passe dessus, déclancher combats)
+-  Ajout QuestManager (gestion des quêtes, dialogues avec pnj, récompenses etc)
+-  Ajout d'un système de flags (booléens de progression dans le jeu)
+-  Refaire un point sauvergarde (Ou on en est dans les quetes, Game connait QuestManager etc) // sauvegarde V2
+-  Ajouter map monde (map du monde dans l'inventaire)
+-  Ajouter du son, musique (MusiqueManager, mise à jour de Game qui connait MusiqueManager)
+-  UI: 
+        -Menu principal (Nouvelle partie, charger partie, quitter)
+        - UI combats
+        - UI inventaire
+        - UI pokémon
+-  Ajouter SaveManager (sauvegarde V3)
+-  Ajout Cycle jour/nuit (game à un int pour le temp, jouer colorimétrie )
+-  Ajouter météo 
+
+
+       
+      
+

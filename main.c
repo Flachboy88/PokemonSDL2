@@ -8,6 +8,8 @@
 #include "game/player.h"
 #include "systems/utils.h"
 #include "systems/inputs.h"
+#include "game/pnj.h"
+#include "systems/camera.h"
 
 Map *loadAndInitMap(const char *name, SDL_Renderer *renderer)
 {
@@ -77,29 +79,57 @@ bool handleEvents(SDL_Event *event, Input *input)
     return true;
 }
 
-void updateData(Player *player, Input *input, float deltaTime, Map *map)
+void scriptPnj(PNJ *pnj, float deltaTime)
 {
-    processPlayerInput(player, input, deltaTime, map);
+    if (pnj)
+    {
+        updatePNJ(pnj, deltaTime);
+        if (pnj->entity.x < 500)
+        {
+            moveRight(pnj, 10);
+        }
+        else
+        {
+            moveUp(pnj, 10);
+        }
+    }
 }
 
-void updateGraphics(SDL_Renderer *renderer, Map *map, Player *player, Uint32 currentTime)
+// Pass camera to updateData
+void updateData(Player *player, PNJ *pnj, Input *input, float deltaTime, Map *map, Camera *camera)
+{
+    processPlayerInput(player, input, deltaTime, map);
+    updatePNJ(pnj, deltaTime);
+
+    // Update camera position to follow the player
+    updateCamera(camera, player->entity.x, player->entity.y);
+
+    // test script pnj
+    // scriptPnj(pnj, deltaTime);
+}
+
+// Pass camera to updateGraphics
+void updateGraphics(SDL_Renderer *renderer, Map *map, Player *player, PNJ *pnj, Uint32 currentTime, Camera *camera)
 {
     SDL_SetRenderDrawColor(renderer, 30, 30, 30, 255);
     SDL_RenderClear(renderer);
 
     // Afficher tous les calques du groupe Background et mettre à jour leurs animations
-    Map_afficherGroup(renderer, map, "Background", 0, 0, currentTime);
+    // Use Map_renderGroup with camera's view_rect
+    Map_renderGroup(renderer, map, "Background", -camera->view_rect.x, -camera->view_rect.y, currentTime);
 
     // Afficher tous les calques du groupe PremierPlan et mettre à jour leurs animations
-    Map_afficherGroup(renderer, map, "PremierPlan", 0, 0, currentTime);
+    Map_renderGroup(renderer, map, "PremierPlan", -camera->view_rect.x, -camera->view_rect.y, currentTime);
 
     // Afficher le joueur
-    renderPlayer(player, renderer);
+    renderPlayer(player, renderer, camera); // Pass camera to renderPlayer
+
+    renderPNJ(pnj, renderer, camera); // Pass camera to renderPNJ (Now it accepts the camera parameter)
 
     // Afficher tous les calques du groupe SecondPlan et mettre à jour leurs animations
-    Map_afficherGroup(renderer, map, "SecondPlan", 0, 0, currentTime);
+    Map_renderGroup(renderer, map, "SecondPlan", -camera->view_rect.x, -camera->view_rect.y, currentTime);
 
-    Map_drawCollisions(renderer, map);
+    Map_drawCollisionsInCamera(renderer, map, camera); // Use new collision drawing function
 
     SDL_RenderPresent(renderer);
 }
@@ -109,7 +139,10 @@ int main(int argc, char *argv[])
     SDL_Window *window = NULL;
     SDL_Renderer *renderer = NULL;
 
-    if (!InitSDL(&window, &renderer, 800, 600))
+    int window_width = 350;
+    int window_height = 350;
+
+    if (!InitSDL(&window, &renderer, window_width, window_height))
     {
         fprintf(stderr, "Erreur InitSDL\n");
         return 1;
@@ -125,16 +158,37 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    Player *player = InitPlayer(map->default_x_spawn - 12, map->default_y_spawn - 32, renderer); // revoir calcul
-    if (!player)
+    // Initialize the camera
+    Camera *camera = initCamera(0, 0, window_width, window_height, map->tmx_map->width * map->tmx_map->tile_width, map->tmx_map->height * map->tmx_map->tile_height);
+    if (!camera)
     {
-        fprintf(stderr, "Erreur création player\n");
+        fprintf(stderr, "Erreur création camera\n");
         freeMap(map);
         SDL_DestroyRenderer(renderer);
         SDL_DestroyWindow(window);
         IMG_Quit();
         SDL_Quit();
         return 1;
+    }
+
+    Player *player = InitPlayer(map->default_x_spawn - 12, map->default_y_spawn - 32, renderer); // revoir calcul
+    if (!player)
+    {
+        fprintf(stderr, "Erreur création player\n");
+        freeMap(map);
+        freeCamera(camera); // Free camera before exiting
+        SDL_DestroyRenderer(renderer);
+        SDL_DestroyWindow(window);
+        IMG_Quit();
+        SDL_Quit();
+        return 1;
+    }
+
+    // test pnj
+    PNJ *testPNJ = createPNJ(100, 100, "resources/sprites/pnj.png", renderer);
+    if (!testPNJ)
+    {
+        fprintf(stderr, "Erreur création PNJ\n");
     }
 
     bool running = true;
@@ -152,17 +206,22 @@ int main(int argc, char *argv[])
         // Gestion des événements
         running = handleEvents(&event, &input);
 
-        // Mise à jour logique
-        updateData(player, &input, deltaTime, map);
+        // Mise à jour logique (pass camera)
+        updateData(player, testPNJ, &input, deltaTime, map, camera);
 
-        // Rendu graphique (passe currentTime)
-        updateGraphics(renderer, map, player, currentTime);
+        // Rendu graphique (passe currentTime et camera)
+        updateGraphics(renderer, map, player, testPNJ, currentTime, camera);
 
         // SDL_Delay(16); // ~60fps
     }
 
     freeMap(map);
     freePlayer(player);
+    freeCamera(camera); // Free camera
+    if (testPNJ)
+    {
+        freePNJ(testPNJ);
+    }
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     IMG_Quit();

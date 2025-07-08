@@ -10,7 +10,8 @@ LIBS = `sdl2-config --libs` -lSDL2_image -ltmx -lz `xml2-config --libs` -lm
 SRC = main.c \
       framework/map.c framework/sprite.c \
       game/entity.c game/player.c \
-      systems/utils.c systems/inputs.c
+      systems/utils.c systems/inputs.c \
+      game/pnj.c systems/camera.c
 
 # Objets correspondants
 OBJ = $(SRC:.c=.o)

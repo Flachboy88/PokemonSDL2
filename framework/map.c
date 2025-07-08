@@ -41,11 +41,11 @@ static int animated_tiles_count = 0;
 static int animated_tiles_capacity = 0;
 
 // Déclarations des fonctions statiques
-static void draw_tile(SDL_Renderer *ren, tmx_tile *tile, int dx, int dy, int tile_width, int tile_height);
-static void draw_layer(SDL_Renderer *ren, tmx_map *m, tmx_layer *layer, uint32_t current_time);
-static void draw_objects(SDL_Renderer *ren, tmx_object_group *og);
-static void draw_image_layer(SDL_Renderer *ren, tmx_image *img);
-static void recurse_layers(SDL_Renderer *ren, tmx_map *m, tmx_layer *layer, uint32_t current_time);
+static void draw_tile(SDL_Renderer *ren, tmx_tile *tile, int dx, int dy, int tile_width, int tile_height, int offsetX, int offsetY);
+static void draw_layer(SDL_Renderer *ren, tmx_map *m, tmx_layer *layer, uint32_t current_time, int offsetX, int offsetY);
+static void draw_objects(SDL_Renderer *ren, tmx_object_group *og, int offsetX, int offsetY);
+static void draw_image_layer(SDL_Renderer *ren, tmx_image *img, int offsetX, int offsetY);
+static void recurse_layers(SDL_Renderer *ren, tmx_map *m, tmx_layer *layer, uint32_t current_time, int offsetX, int offsetY);
 static void add_animated_tile_info(tmx_tile *tile, uint32_t first_gid);
 
 // Fonction utilitaire pour ajouter une tuile animée à notre liste
@@ -129,7 +129,7 @@ Map *loadMap(const char *filePath, SDL_Renderer *renderer)
 
     map->collisions = Map_getCollisionObjects(map, "CollisionObject", &map->collision_count);
 
-    DeBugMap(map);
+    // DeBugMap(map);
     Map_initAnimations(map);
 
     return map;
@@ -166,8 +166,8 @@ void freeMap(Map *map)
     }
 }
 
-// Modification de draw_tile pour accepter un tmx_tile* qui est la frame actuelle
-static void draw_tile(SDL_Renderer *ren, tmx_tile *tile, int dx, int dy, int tile_width, int tile_height)
+// Modification de draw_tile pour accepter un tmx_tile* qui est la frame actuelle et offsets
+static void draw_tile(SDL_Renderer *ren, tmx_tile *tile, int dx, int dy, int tile_width, int tile_height, int offsetX, int offsetY)
 {
     if (!tile)
         return;
@@ -178,12 +178,12 @@ static void draw_tile(SDL_Renderer *ren, tmx_tile *tile, int dx, int dy, int til
         return;
 
     SDL_Rect src = {tile->ul_x, tile->ul_y, tile->width, tile->height};
-    SDL_Rect dst = {dx, dy, tile_width, tile_height};
+    SDL_Rect dst = {dx + offsetX, dy + offsetY, tile_width, tile_height}; // Apply offsets
     SDL_RenderCopy(ren, tex, &src, &dst);
 }
 
-// La fonction draw_layer prend maintenant un 'current_time'
-static void draw_layer(SDL_Renderer *ren, tmx_map *m, tmx_layer *layer, uint32_t current_time)
+// La fonction draw_layer prend maintenant un 'current_time' et offsets
+static void draw_layer(SDL_Renderer *ren, tmx_map *m, tmx_layer *layer, uint32_t current_time, int offsetX, int offsetY)
 {
     if (!layer->visible || layer->type != L_LAYER)
         return;
@@ -236,13 +236,13 @@ static void draw_layer(SDL_Renderer *ren, tmx_map *m, tmx_layer *layer, uint32_t
                         tile_to_draw = m->tiles[info->tileset_first_gid + info->tmx_tile_ptr->animation[info->current_frame_index].tile_id];
                     }
                 }
-                draw_tile(ren, tile_to_draw, x * m->tile_width, y * m->tile_height, m->tile_width, m->tile_height);
+                draw_tile(ren, tile_to_draw, x * m->tile_width, y * m->tile_height, m->tile_width, m->tile_height, offsetX, offsetY);
             }
         }
     }
 }
 
-static void draw_objects(SDL_Renderer *ren, tmx_object_group *og)
+static void draw_objects(SDL_Renderer *ren, tmx_object_group *og, int offsetX, int offsetY)
 {
     SDL_Rect rect;
     tmx_object *o = og->head;
@@ -251,8 +251,8 @@ static void draw_objects(SDL_Renderer *ren, tmx_object_group *og)
         if (o->visible && o->obj_type == OT_SQUARE)
         {
             SDL_SetRenderDrawColor(ren, 255, 0, 0, 128); // Rouge semi-transparent
-            rect.x = o->x;
-            rect.y = o->y;
+            rect.x = o->x + offsetX;                     // Apply offsets
+            rect.y = o->y + offsetY;                     // Apply offsets
             rect.w = o->width;
             rect.h = o->height;
             SDL_RenderDrawRect(ren, &rect);
@@ -261,16 +261,16 @@ static void draw_objects(SDL_Renderer *ren, tmx_object_group *og)
     }
 }
 
-static void draw_image_layer(SDL_Renderer *ren, tmx_image *img)
+static void draw_image_layer(SDL_Renderer *ren, tmx_image *img, int offsetX, int offsetY)
 {
     SDL_Texture *tex = (SDL_Texture *)img->resource_image;
     if (!tex)
         return;
-    SDL_Rect dst = {0, 0, img->width, img->height};
+    SDL_Rect dst = {offsetX, offsetY, img->width, img->height}; // Apply offsets
     SDL_RenderCopy(ren, tex, NULL, &dst);
 }
 
-static void recurse_layers(SDL_Renderer *ren, tmx_map *m, tmx_layer *layer, uint32_t current_time)
+static void recurse_layers(SDL_Renderer *ren, tmx_map *m, tmx_layer *layer, uint32_t current_time, int offsetX, int offsetY)
 {
     while (layer)
     {
@@ -279,16 +279,16 @@ static void recurse_layers(SDL_Renderer *ren, tmx_map *m, tmx_layer *layer, uint
             switch (layer->type)
             {
             case L_GROUP:
-                recurse_layers(ren, m, layer->content.group_head, current_time);
+                recurse_layers(ren, m, layer->content.group_head, current_time, offsetX, offsetY);
                 break;
             case L_LAYER:
-                draw_layer(ren, m, layer, current_time); // Passe current_time à draw_layer
+                draw_layer(ren, m, layer, current_time, offsetX, offsetY); // Pass offsets to draw_layer
                 break;
             case L_OBJGR:
-                draw_objects(ren, layer->content.objgr);
+                draw_objects(ren, layer->content.objgr, offsetX, offsetY); // Pass offsets to draw_objects
                 break;
             case L_IMAGE:
-                draw_image_layer(ren, layer->content.image);
+                draw_image_layer(ren, layer->content.image, offsetX, offsetY); // Pass offsets to draw_image_layer
                 break;
             default:
                 break;
@@ -298,13 +298,13 @@ static void recurse_layers(SDL_Renderer *ren, tmx_map *m, tmx_layer *layer, uint
     }
 }
 
-// Map_afficherGroup prend maintenant un 'current_time'
-void Map_afficherGroup(SDL_Renderer *renderer, Map *map, const char *groupName, int offsetX, int offsetY, uint32_t current_time)
+// Renamed from Map_afficherGroup to Map_renderGroup
+void Map_renderGroup(SDL_Renderer *renderer, Map *map, const char *groupName, int offsetX, int offsetY, uint32_t current_time)
 {
     tmx_layer *layer = tmx_find_layer_by_name(map->tmx_map, groupName);
     if (layer && layer->type == L_GROUP)
     {
-        recurse_layers(renderer, map->tmx_map, layer->content.group_head, current_time);
+        recurse_layers(renderer, map->tmx_map, layer->content.group_head, current_time, offsetX, offsetY);
     }
 }
 
@@ -418,57 +418,56 @@ void Map_initAnimations(Map *map)
         ts_list_item = ts_list_item->next;
     }
 }
-void Map_drawCollisions(SDL_Renderer *renderer, Map *map)
+
+// New function to draw collisions using camera
+void Map_drawCollisionsInCamera(SDL_Renderer *renderer, Map *map, Camera *camera)
 {
-    // printf("Drawing %d collision objects\n", map->collision_count);
-    if (!map || !renderer)
+    if (!map || !renderer || !camera)
         return;
 
-    // Sauvegarder la couleur actuelle
     Uint8 r, g, b, a;
     SDL_GetRenderDrawColor(renderer, &r, &g, &b, &a);
-
-    // Couleur rouge opaque pour les collisions
     SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
 
     for (int i = 0; i < map->collision_count; i++)
     {
         if (map->collisions[i].is_polygon)
         {
-            // Dessiner le polygone avec des lignes plus épaisses
             Point *points = map->collisions[i].polygon_points;
             int count = map->collisions[i].polygon_count;
 
             for (int j = 0; j < count; j++)
             {
                 int next = (j + 1) % count;
-                // Dessiner plusieurs lignes pour épaissir
+                SDL_Point p1_screen = {(int)(points[j].x - camera->view_rect.x), (int)(points[j].y - camera->view_rect.y)};
+                SDL_Point p2_screen = {(int)(points[next].x - camera->view_rect.x), (int)(points[next].y - camera->view_rect.y)};
+
                 for (int k = -1; k <= 1; k++)
                 {
                     for (int l = -1; l <= 1; l++)
                     {
                         SDL_RenderDrawLine(renderer,
-                                           (int)points[j].x + k, (int)points[j].y + l,
-                                           (int)points[next].x + k, (int)points[next].y + l);
+                                           p1_screen.x + k, p1_screen.y + l,
+                                           p2_screen.x + k, p2_screen.y + l);
                     }
                 }
             }
         }
         else
         {
-            // Dessiner le rectangle avec un contour épais
-            SDL_Rect rect = map->collisions[i].rect;
+            SDL_Rect world_rect = map->collisions[i].rect;
+            SDL_Rect screen_rect = getScreenRect(camera, world_rect.x, world_rect.y, world_rect.w, world_rect.h);
+
             for (int k = -1; k <= 1; k++)
             {
                 for (int l = -1; l <= 1; l++)
                 {
-                    SDL_Rect thickRect = {rect.x + k, rect.y + l, rect.w, rect.h};
+                    SDL_Rect thickRect = {screen_rect.x + k, screen_rect.y + l, screen_rect.w, screen_rect.h};
                     SDL_RenderDrawRect(renderer, &thickRect);
                 }
             }
         }
     }
 
-    // Restaurer la couleur précédente
     SDL_SetRenderDrawColor(renderer, r, g, b, a);
 }

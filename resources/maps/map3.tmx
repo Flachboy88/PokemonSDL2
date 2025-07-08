@@ -85,10 +85,7 @@
  </group>
  <group id="12" name="Entities">
   <objectgroup id="16" name="PlayerObject" class="Spawn">
-   <object id="12" name="PlayerSpawn" type="Player" x="333.25" y="293.144">
-    <point/>
-   </object>
-   <object id="18" name="PlayerSpawn" type="Player" x="333.25" y="293.144">
+   <object id="12" name="PlayerSpawn" type="Player" x="72.5833" y="175.811">
     <point/>
    </object>
   </objectgroup>

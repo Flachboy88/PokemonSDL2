@@ -8,6 +8,7 @@
 #include <math.h>
 #include "../systems/inputs.h"
 #include "../framework/map.h"
+#include "../systems/camera.h"
 
 typedef enum
 {
@@ -66,13 +67,11 @@ typedef struct
 Player *InitPlayer(float x, float y, SDL_Renderer *renderer);
 void updatePlayer(Player *player, float deltaTime);
 void updatePlayerWithInput(Player *player, Input *input, float deltaTime, Map *map);
-void renderPlayer(Player *player, SDL_Renderer *renderer);
+void renderPlayer(Player *player, SDL_Renderer *renderer, Camera *camera); // Added Camera* parameter
 void freePlayer(Player *player);
-char *derniereDir(Player *player);
 bool checkCollisionWithMap(Player *player, float newX, float newY, Map *map);
 bool pointInPolygon(Point point, Point *polygon, int count);
 bool rectangleIntersectsPolygon(Hitbox rect, Point *polygon, int count);
-PlayerMode getPlayerMode(Player *player);
 void setPlayerSprite(Player *player);
 void processPlayerInput(Player *player, Input *input, float deltaTime, Map *map);
 void updatePlayerMovement(Player *player, float deltaTime, Map *map);

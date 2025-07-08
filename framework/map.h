@@ -6,6 +6,7 @@
 #include <tmx.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include "../systems/camera.h"
 
 typedef struct
 {
@@ -41,9 +42,9 @@ Map *loadMap(const char *filePath, SDL_Renderer *renderer);
 // Libère la mémoire allouée pour la carte
 void freeMap(Map *map);
 
-// Affiche un groupe de calques spécifique de la carte
+// Affiche un groupe de calques spécifique de la carte, décalé par offsetX, offsetY
 // 'current_time' est ajouté pour la gestion des animations par le groupe
-void Map_afficherGroup(SDL_Renderer *renderer, Map *map, const char *groupName, int offsetX, int offsetY, uint32_t current_time);
+void Map_renderGroup(SDL_Renderer *renderer, Map *map, const char *groupName, int offsetX, int offsetY, uint32_t current_time);
 
 // Récupère les objets de collision d'un groupe d'objets spécifique
 CollisionObject *Map_getCollisionObjects(Map *map, const char *objectGroupName, int *count);
@@ -61,6 +62,8 @@ void Map_initAnimations(Map *map);
 
 // Debug
 void DeBugMap(Map *map);
-void Map_drawCollisions(SDL_Renderer *renderer, Map *map);
+
+// Draws collision objects, adjusted by camera's view
+void Map_drawCollisionsInCamera(SDL_Renderer *renderer, Map *map, Camera *camera);
 
 #endif // MAP_H

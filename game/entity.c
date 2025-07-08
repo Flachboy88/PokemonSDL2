@@ -26,11 +26,13 @@ void updateEntity(Entity *entity)
     }
 }
 
-void renderEntity(Entity *entity, SDL_Renderer *renderer)
+// Modified to use camera
+void renderEntity(Entity *entity, SDL_Renderer *renderer, Camera *camera)
 {
     if (entity->visible && entity->sprite)
     {
-        renderSprite(entity->sprite, renderer, (int)entity->x, (int)entity->y);
+        SDL_Rect screen_rect = getScreenRect(camera, entity->x, entity->y, entity->width, entity->height);
+        renderSprite(entity->sprite, renderer, screen_rect.x, screen_rect.y);
     }
 }
 
@@ -47,10 +49,11 @@ Hitbox getHitbox(Entity *entity)
     return entity->hitbox;
 }
 
-void drawHitbox(Entity *entity, SDL_Renderer *renderer)
+// Modified to use camera
+void drawHitbox(Entity *entity, SDL_Renderer *renderer, Camera *camera)
 {
     // rectangle rouge autour de l'entité
     SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255); // Alpha à 255 au lieu de 128
-    SDL_Rect rect = {(int)entity->hitbox.x, (int)entity->hitbox.y, (int)entity->hitbox.width, (int)entity->hitbox.height};
-    SDL_RenderDrawRect(renderer, &rect);
+    SDL_Rect screen_rect = getScreenRect(camera, entity->hitbox.x, entity->hitbox.y, entity->hitbox.width, entity->hitbox.height);
+    SDL_RenderDrawRect(renderer, &screen_rect);
 }

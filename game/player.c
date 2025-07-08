@@ -143,7 +143,7 @@ void processPlayerInput(Player *player, Input *input, float deltaTime, Map *map)
         float newY = player->entity.y;
         float moveDistance = player->speed * deltaTime;
 
-        // Prioriser une seule direction à la fois (horizontal d'abord)
+        // Prioriser une seule direction à la fois
         if (actions.move_left)
         {
             player->direction = 0;
@@ -248,7 +248,7 @@ void processPlayerInput(Player *player, Input *input, float deltaTime, Map *map)
 
 PlayerActions inputToActions(Input *input)
 {
-    PlayerActions actions = {0};
+    PlayerActions actions = {3}; // move_left, move_right, move_up, move_down, toggle_bike, toggle_run
     actions.move_left = input->left;
     actions.move_right = input->right;
     actions.move_up = input->up;
@@ -283,7 +283,6 @@ void updatePlayerMovement(Player *player, float deltaTime, Map *map)
         float newX = player->entity.x + (dx / distance) * moveDistance;
         float newY = player->entity.y + (dy / distance) * moveDistance;
 
-        // VÉRIFIER LA COLLISION AVANT DE BOUGER VERS LA TARGET
         if (!checkCollisionWithMap(player, newX, newY, map))
         {
             player->entity.x = newX;
@@ -334,15 +333,17 @@ void updatePlayerAnimation(Player *player)
     playAnimation(player->currentSprite, animName);
 }
 
-void renderPlayer(Player *player, SDL_Renderer *renderer)
+// Modified to use camera
+void renderPlayer(Player *player, SDL_Renderer *renderer, Camera *camera)
 {
     if (player->entity.visible && player->entity.sprite)
     {
+        SDL_Rect screen_rect = getScreenRect(camera, player->entity.x, player->entity.y, player->entity.width, player->entity.height);
         renderSpriteFlipped(player->entity.sprite, renderer,
-                            (int)player->entity.x, (int)player->entity.y,
+                            screen_rect.x, screen_rect.y,
                             player->flip);
     }
-    drawHitbox(&player->entity, renderer);
+    drawHitbox(&player->entity, renderer, camera); // Pass camera to drawHitbox
 }
 
 void freePlayer(Player *player)
@@ -375,20 +376,6 @@ void freePlayer(Player *player)
 
         free(player);
     }
-}
-
-char *derniereDir(Player *player)
-{
-    const char *prefix = (player->mode == BIKE_MOD) ? "bike_" : "defaut_";
-
-    if (player->direction == 0)
-        return (player->mode == BIKE_MOD) ? "bike_gauche" : "defaut_gauche";
-    else if (player->direction == 1)
-        return (player->mode == BIKE_MOD) ? "bike_droite" : "defaut_droite";
-    else if (player->direction == 2)
-        return (player->mode == BIKE_MOD) ? "bike_haut" : "defaut_haut";
-    else
-        return (player->mode == BIKE_MOD) ? "bike_bas" : "defaut_bas";
 }
 
 bool pointInPolygon(Point point, Point *polygon, int count)
@@ -460,7 +447,7 @@ bool checkCollisionWithMap(Player *player, float newX, float newY, Map *map)
         }
         else
         {
-            // Collision avec un rectangle (code existant)
+            // Collision avec un rectangle
             SDL_Rect collisionRect = map->collisions[i].rect;
 
             if (tempHitbox.x < collisionRect.x + collisionRect.w &&
@@ -489,7 +476,7 @@ void setPlayerSprite(Player *player)
         break;
     case BIKE_MOD:
         player->currentSprite = player->bikeSprite;
-        player->speed = 200.0f;
+        player->speed = 150.0f;
         break;
     }
     player->entity.sprite = player->currentSprite;

@@ -2,6 +2,7 @@
 #define ENTITY_H
 
 #include "../framework/sprite.h"
+#include "../systems/camera.h"
 #include <stdbool.h>
 
 // Hitbox
@@ -23,9 +24,9 @@ typedef struct
 
 Entity *createEntity(float x, float y, float width, float height, Sprite *sprite, int layer);
 void updateEntity(Entity *entity);
-void renderEntity(Entity *entity, SDL_Renderer *renderer);
+void renderEntity(Entity *entity, SDL_Renderer *renderer, Camera *camera); // Added Camera* parameter
 Hitbox getHitbox(Entity *entity);
 void setHitbox(Entity *entity, float x, float y, float width, float height);
-void drawHitbox(Entity *entity, SDL_Renderer *renderer);
+void drawHitbox(Entity *entity, SDL_Renderer *renderer, Camera *camera); // Added Camera* parameter
 
 #endif
