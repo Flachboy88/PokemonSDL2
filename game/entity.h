@@ -24,9 +24,9 @@ typedef struct
 
 Entity *createEntity(float x, float y, float width, float height, Sprite *sprite, int layer);
 void updateEntity(Entity *entity);
-void renderEntity(Entity *entity, SDL_Renderer *renderer, Camera *camera); // Added Camera* parameter
+void renderEntity(Entity *entity, SDL_Renderer *renderer, Camera *camera);
 Hitbox getHitbox(Entity *entity);
 void setHitbox(Entity *entity, float x, float y, float width, float height);
-void drawHitbox(Entity *entity, SDL_Renderer *renderer, Camera *camera); // Added Camera* parameter
+void drawHitbox(Entity *entity, SDL_Renderer *renderer, Camera *camera);
 
 #endif

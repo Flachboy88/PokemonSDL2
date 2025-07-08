@@ -13,15 +13,15 @@ FONCTIONELLES
 -  Gestion des mouvements
 -  Gestion des animations
 -  Ajouter PNJ ( sprite, animations, mouvements )
+-  Ajouter caméra (suit le joueur et se déplace en fonction de la direction)
+
 
 A IMPLEMENTER
 
--  Ajouter caméra (suit le joueur et se déplace en fonction de la direction)
+-  Ajouter un Game qui connait les infos du jeu (nom map en cours, un player et PNJ)
 -  Ajouter système de spawn avec ports (maison deux portes, nom map + nom maison + port)
 -  Ajouter téléporteur vers autre carte ( nom map + nom téléporteur + port, coordonnées du spawn joueur après le téléporteur)
 -  Ajouter à map une collection de téléporteurs
--  Ajouter à map une collection de PNJ
--  Ajouter un Game qui connait les infos du jeu (nom map en cours, un player)
 -  Ajouter système d'inventaire (endroit pokéballs, endroit potions etc. , + touche pour ouvrir/fermer l'inventaire)
 -  Ajout d'un ItemManager
 -  Ajouter système de sauvegarde (Game) V1

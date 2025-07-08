@@ -129,6 +129,10 @@ Map *loadMap(const char *filePath, SDL_Renderer *renderer)
 
     map->collisions = Map_getCollisionObjects(map, "CollisionObject", &map->collision_count);
 
+    map->pnjs = NULL;
+    map->pnj_count = 0;
+    Map_initPNJs(map, renderer);
+
     // DeBugMap(map);
     Map_initAnimations(map);
 
@@ -152,6 +156,19 @@ void freeMap(Map *map)
                 }
             }
             free(map->collisions);
+        }
+
+        // Libérer les PNJs
+        if (map->pnjs)
+        {
+            for (int i = 0; i < map->pnj_count; i++)
+            {
+                if (map->pnjs[i])
+                {
+                    freePNJ(map->pnjs[i]);
+                }
+            }
+            free(map->pnjs);
         }
 
         tmx_map_free(map->tmx_map);
@@ -470,4 +487,121 @@ void Map_drawCollisionsInCamera(SDL_Renderer *renderer, Map *map, Camera *camera
     }
 
     SDL_SetRenderDrawColor(renderer, r, g, b, a);
+}
+
+void Map_initPNJs(Map *map, SDL_Renderer *renderer)
+{
+    printf("=== DEBUG PNJs ===\n");
+    if (!map || !renderer)
+        return;
+
+    // Chercher le layer "PNJObject" ou similaire
+    tmx_layer *layer = tmx_find_layer_by_name(map->tmx_map, "PNJObject");
+    if (!layer || layer->type != L_OBJGR)
+        return;
+
+    tmx_object_group *og = layer->content.objgr;
+
+    // Compter les PNJs
+    int count = 0;
+    for (tmx_object *o = og->head; o; o = o->next)
+    {
+        if (o->name && strncmp(o->name, "PNJ", 3) == 0) // Objets qui commencent par "PNJ"
+            count++;
+    }
+
+    if (count == 0)
+    {
+        map->pnjs = NULL;
+        map->pnj_count = 0;
+        return;
+    }
+
+    // Allouer le tableau de PNJs
+    map->pnjs = malloc(count * sizeof(PNJ *));
+    map->pnj_count = count;
+
+    int i = 0;
+    for (tmx_object *o = og->head; o; o = o->next)
+    {
+        if (o->name && strncmp(o->name, "PNJ", 3) == 0)
+        {
+
+            const char *spritePath = ""; // Valeur par défaut
+
+            tmx_property *sprite_prop = tmx_get_property(o->properties, "sprite");
+            if (sprite_prop && sprite_prop->type == PT_STRING)
+            {
+                spritePath = sprite_prop->value.string;
+                printf("DEBUG: PNJ object '%s' has sprite property: %s\n", o->name, spritePath);
+            }
+            else
+            {
+                printf("DEBUG: PNJ object '%s' DOES NOT have a 'sprite' property or it's not a string. Using default empty path.\n", o->name); // Add this line
+            }
+
+            // Créer le PNJ
+            map->pnjs[i] = createPNJ(o->x, o->y, spritePath, renderer);
+
+            if (map->pnjs[i])
+            {
+                // Sauvegarder les valeurs par défaut
+                map->pnjs[i]->default_x_spawn = o->x;
+                map->pnjs[i]->default_y_spawn = o->y;
+                map->pnjs[i]->default_dir = 3; // Direction par défaut (bas)
+
+                // Récupérer la direction depuis les propriétés si elle existe
+                tmx_property *dir_prop = tmx_get_property(o->properties, "direction");
+                if (dir_prop && dir_prop->type == PT_INT)
+                {
+                    map->pnjs[i]->default_dir = dir_prop->value.integer;
+                }
+
+                setPNJDirection(map->pnjs[i], map->pnjs[i]->default_dir);
+                map->pnjs[i]->aEteInit = true;
+            }
+            i++;
+        }
+    }
+
+    printf("=== DEBUG PNJs ===\n");
+    printf("Nombre de PNJs créés: %d\n", map->pnj_count);
+    for (int j = 0; j < map->pnj_count; j++)
+    {
+        if (map->pnjs[j])
+        {
+            printf("PNJ %d:\n", j);
+            printf("  Position spawn: x=%.2f, y=%.2f\n", map->pnjs[j]->default_x_spawn, map->pnjs[j]->default_y_spawn);
+            printf("  Position actuelle: x=%.2f, y=%.2f\n", map->pnjs[j]->entity.x, map->pnjs[j]->entity.y);
+            printf("  Direction par défaut: %d\n", map->pnjs[j]->default_dir);
+            printf("  Direction actuelle: %d\n", map->pnjs[j]->direction);
+            printf("  Vitesse: %.2f\n", map->pnjs[j]->speed);
+            printf("  Taille: %.2fx%.2f\n", map->pnjs[j]->entity.width, map->pnjs[j]->entity.height);
+            printf("  Visible: %s\n", map->pnjs[j]->entity.visible ? "true" : "false");
+            printf("  Layer: %d\n", map->pnjs[j]->entity.layer);
+            printf("  A été initialisé: %s\n", map->pnjs[j]->aEteInit ? "true" : "false");
+            printf("  En mouvement: %s\n", map->pnjs[j]->moving ? "true" : "false");
+            printf("  A une cible: %s\n", map->pnjs[j]->hasTarget ? "true" : "false");
+            printf("\n");
+        }
+        else
+        {
+            printf("PNJ %d: NULL (erreur de création)\n", j);
+        }
+    }
+    printf("==================\n");
+}
+
+void Map_renderPNJs(SDL_Renderer *renderer, Map *map, Camera *camera)
+{
+    if (!map || !renderer || !camera)
+        return;
+
+    for (int i = 0; i < map->pnj_count; i++)
+    {
+        if (map->pnjs[i])
+        {
+            renderPNJ(map->pnjs[i], renderer, camera);
+        }
+    }
 }

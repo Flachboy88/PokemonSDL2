@@ -49,7 +49,6 @@ Hitbox getHitbox(Entity *entity)
     return entity->hitbox;
 }
 
-// Modified to use camera
 void drawHitbox(Entity *entity, SDL_Renderer *renderer, Camera *camera)
 {
     // rectangle rouge autour de l'entité

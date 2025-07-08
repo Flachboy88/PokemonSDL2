@@ -100,12 +100,12 @@ void updateData(Player *player, PNJ *pnj, Input *input, float deltaTime, Map *ma
 {
     processPlayerInput(player, input, deltaTime, map);
     updatePNJ(pnj, deltaTime);
-
-    // Update camera position to follow the player
     updateCamera(camera, player->entity.x, player->entity.y);
 
-    // test script pnj
-    // scriptPnj(pnj, deltaTime);
+    for (int i = 0; i < map->pnj_count; i++)
+    {
+        updatePNJ(map->pnjs[i], deltaTime);
+    }
 }
 
 // Pass camera to updateGraphics
@@ -114,22 +114,15 @@ void updateGraphics(SDL_Renderer *renderer, Map *map, Player *player, PNJ *pnj, 
     SDL_SetRenderDrawColor(renderer, 30, 30, 30, 255);
     SDL_RenderClear(renderer);
 
-    // Afficher tous les calques du groupe Background et mettre à jour leurs animations
-    // Use Map_renderGroup with camera's view_rect
     Map_renderGroup(renderer, map, "Background", -camera->view_rect.x, -camera->view_rect.y, currentTime);
-
-    // Afficher tous les calques du groupe PremierPlan et mettre à jour leurs animations
     Map_renderGroup(renderer, map, "PremierPlan", -camera->view_rect.x, -camera->view_rect.y, currentTime);
 
-    // Afficher le joueur
-    renderPlayer(player, renderer, camera); // Pass camera to renderPlayer
+    renderPlayer(player, renderer, camera);
+    renderPNJ(pnj, renderer, camera);
+    Map_renderPNJs(renderer, map, camera);
 
-    renderPNJ(pnj, renderer, camera); // Pass camera to renderPNJ (Now it accepts the camera parameter)
-
-    // Afficher tous les calques du groupe SecondPlan et mettre à jour leurs animations
     Map_renderGroup(renderer, map, "SecondPlan", -camera->view_rect.x, -camera->view_rect.y, currentTime);
-
-    Map_drawCollisionsInCamera(renderer, map, camera); // Use new collision drawing function
+    Map_drawCollisionsInCamera(renderer, map, camera);
 
     SDL_RenderPresent(renderer);
 }

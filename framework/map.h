@@ -7,6 +7,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "../systems/camera.h"
+#include "../game/pnj.h"
 
 typedef struct
 {
@@ -34,6 +35,9 @@ typedef struct
     CollisionObject *collisions;
     int collision_count;
 
+    PNJ **pnjs;
+    int pnj_count;
+
 } Map;
 
 // Charge une carte TMX et ses ressources associées
@@ -57,7 +61,6 @@ bool Map_getPlayerSpawn(Map *map, float *x, float *y);
 bool Map_setTile(Map *map, const char *layerName, int x, int y, int gid);
 
 // Initialise les informations d'animation pour toutes les tuiles animées de la carte
-// Cette fonction est maintenant déclarée ici car elle est appelée depuis main.c
 void Map_initAnimations(Map *map);
 
 // Debug
@@ -65,5 +68,13 @@ void DeBugMap(Map *map);
 
 // Draws collision objects, adjusted by camera's view
 void Map_drawCollisionsInCamera(SDL_Renderer *renderer, Map *map, Camera *camera);
+
+// fonctions PNJ ( add, remove, update, render, etc. )
+
+// Initializes PNJs from the map's object layers
+void Map_initPNJs(Map *map, SDL_Renderer *renderer);
+
+// Renders all PNJs in the map
+void Map_renderPNJs(SDL_Renderer *renderer, Map *map, Camera *camera);
 
 #endif // MAP_H
