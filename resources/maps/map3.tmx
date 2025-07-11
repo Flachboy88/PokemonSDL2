@@ -88,7 +88,7 @@
    <object id="21" name="PNJ_Josephine" type="PNJ" x="232.667" y="106">
     <properties>
      <property name="MapNamePNJ" value="map3"/>
-     <property name="initialDirection" type="int" value="3"/>
+     <property name="dir" type="int" value="3"/>
      <property name="speed" type="float" value="50"/>
      <property name="sprite" value="resources/sprites/pnj.png"/>
     </properties>

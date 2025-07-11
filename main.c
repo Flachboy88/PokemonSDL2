@@ -102,10 +102,7 @@ void updateData(Player *player, PNJ *pnj, Input *input, float deltaTime, Map *ma
     updatePNJ(pnj, deltaTime);
     updateCamera(camera, player->entity.x, player->entity.y);
 
-    for (int i = 0; i < map->pnj_count; i++)
-    {
-        updatePNJ(map->pnjs[i], deltaTime);
-    }
+    UpdatePNJs(map, deltaTime);
 }
 
 // Pass camera to updateGraphics
